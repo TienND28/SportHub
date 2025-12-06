@@ -68,6 +68,10 @@ server.get("/health/db", async (request, reply) => {
     }
 });
 
+// Register auth routes
+import { authRouter } from "./src/modules/auth/auth.router";
+server.register(authRouter, { prefix: "/api/auth" });
+
 // Start server
 const start = async () => {
     try {

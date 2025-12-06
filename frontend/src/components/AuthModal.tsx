@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 
 interface AuthModalProps {
     isOpen: boolean;
@@ -8,18 +9,51 @@ interface AuthModalProps {
 }
 
 export default function AuthModal({ isOpen, onClose, mode, onSwitchMode }: AuthModalProps) {
+    const { login, register } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');
     const [rememberMe, setRememberMe] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState('');
 
     if (!isOpen) return null;
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        // TODO: Implement authentication logic
-        console.log('Submit:', { email, password, name, phone, rememberMe, mode });
+        setError('');
+        setIsLoading(true);
+
+        try {
+            if (mode === 'login') {
+                await login(email, password);
+            } else {
+                await register(email, password, name, phone);
+            }
+
+            // Close modal on success
+            onClose();
+
+            // Reset form
+            setEmail('');
+            setPassword('');
+            setName('');
+            setPhone('');
+        } catch (err: any) {
+            setError(err.message || 'Đã xảy ra lỗi');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleClose = () => {
+        setError('');
+        setEmail('');
+        setPassword('');
+        setName('');
+        setPhone('');
+        onClose();
     };
 
     return (
@@ -27,15 +61,16 @@ export default function AuthModal({ isOpen, onClose, mode, onSwitchMode }: AuthM
             {/* Backdrop */}
             <div
                 className="absolute inset-0 bg-black bg-opacity-50"
-                onClick={onClose}
+                onClick={handleClose}
             />
 
             {/* Modal */}
             <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6">
                 {/* Close Button */}
                 <button
-                    onClick={onClose}
+                    onClick={handleClose}
                     className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+                    disabled={isLoading}
                 >
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -47,13 +82,20 @@ export default function AuthModal({ isOpen, onClose, mode, onSwitchMode }: AuthM
                     {mode === 'login' ? 'Đăng nhập' : 'Đăng ký'}
                 </h2>
 
+                {/* Error Message */}
+                {error && (
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                        <p className="text-sm text-red-600">{error}</p>
+                    </div>
+                )}
+
                 {/* Form */}
                 <form onSubmit={handleSubmit} className="space-y-4">
                     {mode === 'register' && (
                         <>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Họ và tên
+                                    Họ và tên <span className="text-red-500">*</span>
                                 </label>
                                 <input
                                     type="text"
@@ -62,6 +104,7 @@ export default function AuthModal({ isOpen, onClose, mode, onSwitchMode }: AuthM
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                     placeholder="Nhập họ và tên"
                                     required
+                                    disabled={isLoading}
                                 />
                             </div>
 
@@ -75,6 +118,7 @@ export default function AuthModal({ isOpen, onClose, mode, onSwitchMode }: AuthM
                                     onChange={(e) => setPhone(e.target.value)}
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                     placeholder="Nhập số điện thoại"
+                                    disabled={isLoading}
                                 />
                             </div>
                         </>
@@ -82,7 +126,7 @@ export default function AuthModal({ isOpen, onClose, mode, onSwitchMode }: AuthM
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Email
+                            Email <span className="text-red-500">*</span>
                         </label>
                         <input
                             type="email"
@@ -91,12 +135,13 @@ export default function AuthModal({ isOpen, onClose, mode, onSwitchMode }: AuthM
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             placeholder="Nhập email"
                             required
+                            disabled={isLoading}
                         />
                     </div>
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Mật khẩu
+                            Mật khẩu <span className="text-red-500">*</span>
                         </label>
                         <input
                             type="password"
@@ -105,6 +150,8 @@ export default function AuthModal({ isOpen, onClose, mode, onSwitchMode }: AuthM
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             placeholder="Nhập mật khẩu"
                             required
+                            disabled={isLoading}
+                            minLength={6}
                         />
                     </div>
 
@@ -116,6 +163,7 @@ export default function AuthModal({ isOpen, onClose, mode, onSwitchMode }: AuthM
                                     checked={rememberMe}
                                     onChange={(e) => setRememberMe(e.target.checked)}
                                     className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                    disabled={isLoading}
                                 />
                                 <span className="ml-2 text-sm text-gray-600">Ghi nhớ đăng nhập</span>
                             </label>
@@ -127,9 +175,20 @@ export default function AuthModal({ isOpen, onClose, mode, onSwitchMode }: AuthM
 
                     <button
                         type="submit"
-                        className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition font-medium"
+                        className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition font-medium disabled:bg-blue-300 disabled:cursor-not-allowed flex items-center justify-center"
+                        disabled={isLoading}
                     >
-                        {mode === 'login' ? 'Đăng nhập' : 'Đăng ký'}
+                        {isLoading ? (
+                            <>
+                                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                Đang xử lý...
+                            </>
+                        ) : (
+                            mode === 'login' ? 'Đăng nhập' : 'Đăng ký'
+                        )}
                     </button>
                 </form>
 
@@ -139,8 +198,12 @@ export default function AuthModal({ isOpen, onClose, mode, onSwitchMode }: AuthM
                         <>
                             Chưa có tài khoản?{' '}
                             <button
-                                onClick={() => onSwitchMode('register')}
+                                onClick={() => {
+                                    setError('');
+                                    onSwitchMode('register');
+                                }}
                                 className="text-blue-600 hover:text-blue-700 font-medium"
+                                disabled={isLoading}
                             >
                                 Đăng ký ngay
                             </button>
@@ -149,8 +212,12 @@ export default function AuthModal({ isOpen, onClose, mode, onSwitchMode }: AuthM
                         <>
                             Đã có tài khoản?{' '}
                             <button
-                                onClick={() => onSwitchMode('login')}
+                                onClick={() => {
+                                    setError('');
+                                    onSwitchMode('login');
+                                }}
                                 className="text-blue-600 hover:text-blue-700 font-medium"
+                                disabled={isLoading}
                             >
                                 Đăng nhập
                             </button>
