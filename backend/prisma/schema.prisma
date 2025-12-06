@@ -1,0 +1,260 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model booking_hold_logs {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  booking_id String   @db.Uuid
+  expired_at DateTime @db.Timestamptz(6)
+  is_expired Boolean? @default(false)
+  bookings   bookings @relation(fields: [booking_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model booking_items {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  booking_id       String    @db.Uuid
+  court_id         String    @db.Uuid
+  start_time       DateTime  @db.Timestamptz(6)
+  end_time         DateTime  @db.Timestamptz(6)
+  duration_minutes Int
+  price            Int
+  created_at       DateTime? @default(now()) @db.Timestamptz(6)
+  bookings         bookings  @relation(fields: [booking_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  courts           courts    @relation(fields: [court_id], references: [id], onUpdate: NoAction)
+
+  @@index([court_id, start_time, end_time], map: "idx_booking_items_court_time")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model bookings {
+  id                   String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id              String              @db.Uuid
+  status               String              @db.VarChar
+  total_price          Int                 @default(0)
+  payos_transaction_id String?             @db.VarChar
+  created_at           DateTime?           @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime?           @default(now()) @db.Timestamptz(6)
+  booking_hold_logs    booking_hold_logs[]
+  booking_items        booking_items[]
+  users                users               @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  payment_logs         payment_logs[]
+
+  @@index([created_at], map: "idx_bookings_created")
+  @@index([status], map: "idx_bookings_status")
+  @@index([user_id], map: "idx_bookings_user")
+}
+
+model court_maintenance {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  court_id   String    @db.Uuid
+  start_time DateTime  @db.Timestamptz(6)
+  end_time   DateTime  @db.Timestamptz(6)
+  reason     String?
+  created_at DateTime? @default(now()) @db.Timestamptz(6)
+  courts     courts    @relation(fields: [court_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model court_pricing_rules {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  court_id       String    @db.Uuid
+  day_of_week    Int?
+  start_time     DateTime  @db.Time(6)
+  end_time       DateTime  @db.Time(6)
+  price_per_hour Int
+  label          String?   @db.VarChar
+  created_at     DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime? @default(now()) @db.Timestamptz(6)
+  courts         courts    @relation(fields: [court_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([court_id], map: "idx_pricing_court")
+  @@index([day_of_week], map: "idx_pricing_dow")
+  @@index([start_time, end_time], map: "idx_pricing_time")
+}
+
+model courts {
+  id                   String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  venue_id             String                @db.Uuid
+  name                 String?               @db.VarChar
+  description          String?
+  sport_type           sport_types
+  is_under_maintenance Boolean?              @default(false)
+  is_active            Boolean?              @default(true)
+  created_at           DateTime?             @default(now()) @db.Timestamptz(6)
+  booking_items        booking_items[]
+  court_maintenance    court_maintenance[]
+  court_pricing_rules  court_pricing_rules[]
+  venues               venues                @relation(fields: [venue_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([is_active], map: "idx_courts_active")
+  @@index([is_under_maintenance], map: "idx_courts_maintenance")
+  @@index([sport_type], map: "idx_courts_type")
+  @@index([venue_id], map: "idx_courts_venue")
+}
+
+model districts {
+  id          Int       @id @default(autoincrement())
+  province_id Int
+  code        String    @unique @db.VarChar
+  name        String    @db.VarChar
+  provinces   provinces @relation(fields: [province_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  venues      venues[]
+  wards       wards[]
+
+  @@index([code], map: "idx_districts_code")
+}
+
+model email_verification_tokens {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String    @db.Uuid
+  token      String    @unique @db.VarChar
+  expired_at DateTime  @db.Timestamptz(6)
+  created_at DateTime? @default(now()) @db.Timestamptz(6)
+  used       Boolean?  @default(false)
+  users      users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([expired_at], map: "idx_email_tokens_expired")
+  @@index([user_id], map: "idx_email_tokens_user")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model payment_logs {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  booking_id String    @db.Uuid
+  event      String    @db.VarChar
+  raw_data   Json?
+  created_at DateTime? @default(now()) @db.Timestamptz(6)
+  bookings   bookings  @relation(fields: [booking_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([booking_id], map: "idx_payment_logs_booking")
+  @@index([event], map: "idx_payment_logs_event")
+}
+
+model provinces {
+  id        Int         @id @default(autoincrement())
+  code      String      @unique @db.VarChar
+  name      String      @db.VarChar
+  districts districts[]
+  venues    venues[]
+
+  @@index([code], map: "idx_provinces_code")
+}
+
+model refresh_tokens {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String    @db.Uuid
+  token      String    @db.VarChar
+  user_agent String?   @db.VarChar
+  created_at DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at DateTime? @default(now()) @db.Timestamptz(6)
+  expired_at DateTime  @db.Timestamptz(6)
+  users      users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([expired_at], map: "idx_refresh_tokens_expired")
+  @@index([user_id], map: "idx_refresh_tokens_user")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model users {
+  id                        String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  full_name                 String                      @db.VarChar
+  email                     String                      @unique @db.VarChar
+  password                  String                      @db.VarChar
+  phone                     String?                     @db.VarChar
+  role                      String                      @db.VarChar
+  avatar                    String?
+  date_of_birth             DateTime?                   @db.Date
+  gender                    String?                     @db.VarChar
+  favorite_sports           String[]
+  is_verified               Boolean?                    @default(false)
+  is_active                 Boolean?                    @default(true)
+  created_at                DateTime?                   @default(now()) @db.Timestamptz(6)
+  updated_at                DateTime?                   @default(now()) @db.Timestamptz(6)
+  bookings                  bookings[]
+  email_verification_tokens email_verification_tokens[]
+  refresh_tokens            refresh_tokens[]
+  venues                    venues[]
+
+  @@index([is_active], map: "idx_users_active")
+  @@index([email], map: "idx_users_email")
+  @@index([role], map: "idx_users_role")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model venue_hours {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  venue_id    String    @db.Uuid
+  day_of_week Int?
+  open_time   DateTime? @db.Time(6)
+  close_time  DateTime? @db.Time(6)
+  venues      venues    @relation(fields: [venue_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([venue_id], map: "idx_venue_hours_venue")
+}
+
+model venue_maintenance {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  venue_id   String    @db.Uuid
+  start_time DateTime  @db.Timestamptz(6)
+  end_time   DateTime  @db.Timestamptz(6)
+  reason     String?
+  created_at DateTime? @default(now()) @db.Timestamptz(6)
+  venues     venues    @relation(fields: [venue_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model venues {
+  id                   String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  owner_id             String              @db.Uuid
+  name                 String?             @db.VarChar
+  description          String?
+  address              String?             @db.VarChar
+  lat                  Float?
+  lng                  Float?
+  image                String?
+  is_active            Boolean?            @default(true)
+  is_under_maintenance Boolean?            @default(false)
+  province_id          Int?
+  district_id          Int?
+  ward_id              Int?
+  created_at           DateTime?           @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime?           @default(now()) @db.Timestamptz(6)
+  courts               courts[]
+  venue_hours          venue_hours[]
+  venue_maintenance    venue_maintenance[]
+  districts            districts?          @relation(fields: [district_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users                users               @relation(fields: [owner_id], references: [id], onUpdate: NoAction)
+  provinces            provinces?          @relation(fields: [province_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  wards                wards?              @relation(fields: [ward_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([is_active], map: "idx_venues_active")
+  @@index([district_id], map: "idx_venues_district_id")
+  @@index([province_id, district_id, ward_id], map: "idx_venues_location")
+  @@index([owner_id], map: "idx_venues_owner")
+  @@index([province_id], map: "idx_venues_province_id")
+  @@index([is_under_maintenance], map: "idx_venues_under_maintenance")
+  @@index([ward_id], map: "idx_venues_ward_id")
+}
+
+model wards {
+  id          Int       @id @default(autoincrement())
+  district_id Int
+  code        String    @unique @db.VarChar
+  name        String    @db.VarChar
+  venues      venues[]
+  districts   districts @relation(fields: [district_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([code], map: "idx_wards_code")
+}
+
+enum sport_types {
+  football
+  badminton
+  pickleball
+  basketball
+  volleyball
+}
