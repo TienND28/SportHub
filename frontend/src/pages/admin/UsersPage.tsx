@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { AdminLayout, UserDetailModal, ConfirmDialog } from '../../components';
-import { adminService } from '../../services/admin/user.admin.service';
-import type { User, GetAllUsersParams } from '../../services/admin/user.admin.service';
+import { adminService } from '../../services/user.admin.service';
+import type { User, GetAllUsersParams } from '../../services/user.admin.service';
 import {
     Search,
     Filter,
