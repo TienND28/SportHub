@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface HeaderProps {
     onLoginClick: () => void;
@@ -20,16 +21,16 @@ export default function Header({ onLoginClick }: HeaderProps) {
                 <div className="flex items-center justify-between h-16">
                     {/* Logo */}
                     <div className="flex items-center">
-                        <h1 className="text-2xl font-bold text-blue-600">
+                        <Link to="/" className="text-2xl font-bold text-blue-600">
                             SportHub
-                        </h1>
+                        </Link>
                     </div>
 
                     {/* Navigation */}
                     <nav className="hidden md:flex items-center space-x-8">
-                        <a href="#" className="text-gray-600 hover:text-gray-900 transition">
+                        <Link to="/" className="text-gray-600 hover:text-gray-900 transition">
                             Trang chủ
-                        </a>
+                        </Link>
                         <a href="#" className="text-gray-600 hover:text-gray-900 transition">
                             Sự kiện
                         </a>
@@ -74,12 +75,13 @@ export default function Header({ onLoginClick }: HeaderProps) {
                                                 <p className="text-sm font-medium text-gray-900">{user.full_name}</p>
                                                 <p className="text-xs text-gray-500">{user.email}</p>
                                             </div>
-                                            <a
-                                                href="#"
+                                            <Link
+                                                to="/profile"
                                                 className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                                onClick={() => setShowDropdown(false)}
                                             >
                                                 Tài khoản của tôi
-                                            </a>
+                                            </Link>
                                             <a
                                                 href="#"
                                                 className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"

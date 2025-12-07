@@ -1,8 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { JwtUtil } from '../common/utils';
+import { extractTokenFromHeader, verifyToken } from '../common/utils';
 import prisma from '../config/database';
 
-// Extend Fastify Request type to include user
 declare module 'fastify' {
     interface FastifyRequest {
         user?: {
@@ -13,10 +12,6 @@ declare module 'fastify' {
     }
 }
 
-/**
- * Authentication middleware using JwtUtil
- * Verifies JWT token from Authorization header or cookies
- */
 export async function authMiddleware(
     request: FastifyRequest,
     reply: FastifyReply
@@ -24,10 +19,8 @@ export async function authMiddleware(
     try {
         let token: string | null = null;
 
-        // Try to get token from Authorization header first
-        token = JwtUtil.extractTokenFromHeader(request.headers.authorization);
+        token = extractTokenFromHeader(request.headers.authorization);
 
-        // If not in header, try cookies
         if (!token && request.cookies.jwt) {
             token = request.cookies.jwt;
         }
@@ -39,10 +32,8 @@ export async function authMiddleware(
             });
         }
 
-        // Verify token using JwtUtil
-        const payload = JwtUtil.verifyToken<{ userId: string; type: string }>(token);
+        const payload = verifyToken<{ userId: string; type: string }>(token);
 
-        // Check if it's an access token
         if (payload.type !== 'access') {
             return reply.status(401).send({
                 success: false,
@@ -50,7 +41,6 @@ export async function authMiddleware(
             });
         }
 
-        // Get user from database
         const user = await prisma.users.findUnique({
             where: { id: payload.userId },
             select: {
@@ -68,7 +58,6 @@ export async function authMiddleware(
             });
         }
 
-        // Attach user to request
         request.user = user;
 
     } catch (error) {
@@ -86,10 +75,6 @@ export async function authMiddleware(
     }
 }
 
-/**
- * Optional authentication middleware
- * Doesn't fail if no token is provided, but verifies if present
- */
 export async function optionalAuthMiddleware(
     request: FastifyRequest,
     reply: FastifyReply
@@ -97,10 +82,8 @@ export async function optionalAuthMiddleware(
     try {
         let token: string | null = null;
 
-        // Try to get token from Authorization header first
-        token = JwtUtil.extractTokenFromHeader(request.headers.authorization);
+        token = extractTokenFromHeader(request.headers.authorization);
 
-        // If not in header, try cookies
         if (!token && request.cookies.jwt) {
             token = request.cookies.jwt;
         }
@@ -111,7 +94,7 @@ export async function optionalAuthMiddleware(
         }
 
         // Verify token using JwtUtil
-        const payload = JwtUtil.verifyToken<{ userId: string; type: string }>(token);
+        const payload = verifyToken<{ userId: string; type: string }>(token);
 
         // Get user from database
         const user = await prisma.users.findUnique({
@@ -132,26 +115,4 @@ export async function optionalAuthMiddleware(
         // Silently fail for optional auth
         return;
     }
-}
-
-/**
- * Role-based authorization middleware factory
- * Use after authMiddleware to check user roles
- */
-export function requireRole(...allowedRoles: string[]) {
-    return async (request: FastifyRequest, reply: FastifyReply) => {
-        if (!request.user) {
-            return reply.status(401).send({
-                success: false,
-                message: 'Authentication required'
-            });
-        }
-
-        if (!allowedRoles.includes(request.user.role)) {
-            return reply.status(403).send({
-                success: false,
-                message: 'Insufficient permissions'
-            });
-        }
-    };
 }

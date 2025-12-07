@@ -1,6 +1,6 @@
 import { LoginDto, RegisterDto } from './auth.dto';
 import bcrypt from 'bcrypt';
-import { JwtUtil } from '../../common/utils';
+import { generateAccessToken, generateRefreshToken, verifyToken } from '../../common/utils';
 import prisma from '../../config/database';
 
 const ACCESS_EXPIRES = process.env.ACCESS_EXPIRES_IN || '15m';
@@ -57,8 +57,8 @@ export const AuthService = {
     });
 
     // Use JwtUtil to generate tokens
-    const accessToken = JwtUtil.generateAccessToken(user.id);
-    const refreshToken = JwtUtil.generateRefreshToken(user.id);
+    const accessToken = generateAccessToken(user.id);
+    const refreshToken = generateRefreshToken(user.id);
 
     const hashedRefresh = await bcrypt.hash(refreshToken, SALT_ROUNDS);
     const expiresMs = parseExpiryToMs(REFRESH_EXPIRES);
@@ -90,8 +90,8 @@ export const AuthService = {
     if (!isPasswordValid) throw new Error('Invalid email or password');
 
     // Use JwtUtil to generate tokens
-    const accessToken = JwtUtil.generateAccessToken(user.id);
-    const refreshToken = JwtUtil.generateRefreshToken(user.id);
+    const accessToken = generateAccessToken(user.id);
+    const refreshToken = generateRefreshToken(user.id);
     const hashedRefresh = await bcrypt.hash(refreshToken, SALT_ROUNDS);
     const expiresMs = parseExpiryToMs(REFRESH_EXPIRES);
 
@@ -132,7 +132,7 @@ export const AuthService = {
   async refreshToken(token: string, options?: { userAgent?: string }) {
     try {
       // Use JwtUtil to verify token
-      const decoded = JwtUtil.verifyToken<{ userId: string }>(token);
+      const decoded = verifyToken<{ userId: string }>(token);
 
       const userId = decoded.userId;
       if (!userId) throw new Error('Invalid token payload');
@@ -163,8 +163,8 @@ export const AuthService = {
       await prisma.refresh_tokens.delete({ where: { id: matchedToken.id } });
 
       // Use JwtUtil to generate new tokens
-      const newAccess = JwtUtil.generateAccessToken(user.id);
-      const newRefresh = JwtUtil.generateRefreshToken(user.id);
+      const newAccess = generateAccessToken(user.id);
+      const newRefresh = generateRefreshToken(user.id);
 
       const hashedNewRefresh = await bcrypt.hash(newRefresh, SALT_ROUNDS);
       const expiresMs = parseExpiryToMs(REFRESH_EXPIRES);
@@ -226,7 +226,7 @@ export const AuthService = {
   verifyAccessToken(token: string): string | null {
     try {
       // Use JwtUtil to verify token
-      const payload = JwtUtil.verifyToken<{ userId: string }>(token);
+      const payload = verifyToken<{ userId: string }>(token);
       return payload.userId ?? null;
     } catch {
       return null;
