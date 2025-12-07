@@ -1,9 +1,13 @@
+import "reflect-metadata"; // Required for class-validator
 import dotenv from "dotenv";
 import fastify from "fastify";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import cookie from "@fastify/cookie";
 import prisma from "./src/config/database";
+
+import { authRouter } from "./src/modules/auth/auth.router";
+import { userRouter } from "./src/modules/user/user.router";
 
 // Load environment variables
 dotenv.config();
@@ -23,6 +27,7 @@ server.register(cookie, {
 server.register(cors, {
     origin: true, // Cho phép tất cả origins trong development
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
 });
 
 // Đăng ký Helmet cho security
@@ -68,11 +73,10 @@ server.get("/health/db", async (request, reply) => {
     }
 });
 
-// Register auth routes
-import { authRouter } from "./src/modules/auth/auth.router";
 server.register(authRouter, { prefix: "/api/auth" });
+server.register(userRouter, { prefix: "/api/users" });
 
-// Start server
+
 const start = async () => {
     try {
         // Test database connection

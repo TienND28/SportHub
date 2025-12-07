@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface AuthModalProps {
     isOpen: boolean;
@@ -10,6 +11,7 @@ interface AuthModalProps {
 
 export default function AuthModal({ isOpen, onClose, mode, onSwitchMode }: AuthModalProps) {
     const { login, register } = useAuth();
+    const navigate = useNavigate();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [name, setName] = useState('');
@@ -40,6 +42,18 @@ export default function AuthModal({ isOpen, onClose, mode, onSwitchMode }: AuthM
             setPassword('');
             setName('');
             setPhone('');
+
+            // Redirect based on role
+            // Need to get user from localStorage since context might not be updated yet
+            const storedUser = localStorage.getItem('user');
+            if (storedUser) {
+                const userData = JSON.parse(storedUser);
+                if (userData.role === 'admin') {
+                    navigate('/admin');
+                } else {
+                    navigate('/');
+                }
+            }
         } catch (err: any) {
             setError(err.message || 'Đã xảy ra lỗi');
         } finally {

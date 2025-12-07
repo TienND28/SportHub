@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import Header from '../components/Header';
-import AuthModal from '../components/AuthModal';
+import { AuthModal, Header } from '../../components';
 
 export default function HomePage() {
     const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
