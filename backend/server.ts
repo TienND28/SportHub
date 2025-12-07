@@ -9,6 +9,7 @@ import prisma from "./src/config/database";
 import { authRouter } from "./src/modules/auth/auth.router";
 import { userRouter } from "./src/modules/user/user.router";
 import locationRoutes from "./src/modules/location/location.routes";
+import venueRoutes from "./src/modules/venue/venue.routes";
 
 // Load environment variables
 dotenv.config();
@@ -77,6 +78,7 @@ server.get("/health/db", async (request, reply) => {
 server.register(authRouter, { prefix: "/api/auth" });
 server.register(userRouter, { prefix: "/api/users" });
 server.register(locationRoutes, { prefix: "/api/locations" });
+server.register(venueRoutes, { prefix: "/api/venues" });
 
 
 const start = async () => {

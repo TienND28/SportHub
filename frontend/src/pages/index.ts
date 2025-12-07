@@ -5,6 +5,7 @@
 // Admin Pages
 export { default as AdminDashboardPage } from './admin/DashboardPage';
 export { default as AdminUsersPage } from './admin/UsersPage';
+export { default as AdminVenuesPage } from './admin/VenuesPage';
 
 // Common Pages
 export { default as HomePage } from './common/HomePage';

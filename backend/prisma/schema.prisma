@@ -32,17 +32,19 @@ model booking_items {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model bookings {
-  id                   String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id              String              @db.Uuid
-  status               String              @db.VarChar
-  total_price          Int                 @default(0)
-  payos_transaction_id String?             @db.VarChar
-  created_at           DateTime?           @default(now()) @db.Timestamptz(6)
-  updated_at           DateTime?           @default(now()) @db.Timestamptz(6)
+  id                   String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id              String               @db.Uuid
+  status               String               @db.VarChar
+  total_price          Int                  @default(0)
+  payos_transaction_id String?              @db.VarChar
+  created_at           DateTime?            @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime?            @default(now()) @db.Timestamptz(6)
+  booking_commissions  booking_commissions?
   booking_hold_logs    booking_hold_logs[]
   booking_items        booking_items[]
-  users                users               @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users                users                @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   payment_logs         payment_logs[]
+  refund_logs          refund_logs[]
 
   @@index([created_at], map: "idx_bookings_created")
   @@index([status], map: "idx_bookings_status")
@@ -177,8 +179,11 @@ model users {
   updated_at                DateTime?                   @default(now()) @db.Timestamptz(6)
   bookings                  bookings[]
   email_verification_tokens email_verification_tokens[]
+  owner_subscriptions       owner_subscriptions[]
   refresh_tokens            refresh_tokens[]
+  refund_logs               refund_logs[]
   venues                    venues[]
+  wallets                   wallets?
 
   @@index([is_active], map: "idx_users_active")
   @@index([email], map: "idx_users_email")
@@ -223,6 +228,8 @@ model venues {
   ward_id              Int?
   created_at           DateTime?           @default(now()) @db.Timestamptz(6)
   updated_at           DateTime?           @default(now()) @db.Timestamptz(6)
+  opening_time         DateTime?           @db.Time(6)
+  closing_time         DateTime?           @db.Time(6)
   courts               courts[]
   venue_hours          venue_hours[]
   venue_maintenance    venue_maintenance[]
@@ -249,6 +256,88 @@ model wards {
   districts   districts @relation(fields: [district_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([code], map: "idx_wards_code")
+}
+
+model booking_commissions {
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  booking_id        String    @unique @db.Uuid
+  booking_total     Int
+  commission_rate   Decimal   @db.Decimal(5, 2)
+  commission_amount Int
+  owner_receive     Int
+  created_at        DateTime? @default(now()) @db.Timestamptz(6)
+  bookings          bookings  @relation(fields: [booking_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model owner_subscriptions {
+  id                 Int                @id @default(autoincrement())
+  user_id            String             @db.Uuid
+  plan_id            Int
+  start_date         DateTime           @default(now()) @db.Timestamptz(6)
+  end_date           DateTime?          @db.Timestamptz(6)
+  status             String             @default("active") @db.VarChar(20)
+  auto_renew         Boolean?           @default(false)
+  created_at         DateTime?          @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime?          @default(now()) @db.Timestamptz(6)
+  subscription_plans subscription_plans @relation(fields: [plan_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users              users              @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([plan_id], map: "idx_owner_sub_plan")
+  @@index([status], map: "idx_owner_sub_status")
+  @@index([user_id], map: "idx_owner_sub_user")
+}
+
+model refund_logs {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  booking_id String    @db.Uuid
+  user_id    String    @db.Uuid
+  amount     Int
+  reason     String?
+  created_at DateTime? @default(now()) @db.Timestamptz(6)
+  bookings   bookings  @relation(fields: [booking_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users      users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model subscription_plans {
+  id                  Int                   @id @default(autoincrement())
+  plan_name           String                @unique @db.VarChar(50)
+  price_month         Int?
+  price_6_month       Int?
+  price_year          Int?
+  max_fields          Int?
+  has_chat            Boolean?              @default(false)
+  report_level        String?               @default("basic") @db.VarChar(20)
+  priority_level      Int?                  @default(0)
+  created_at          DateTime?             @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime?             @default(now()) @db.Timestamptz(6)
+  owner_subscriptions owner_subscriptions[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model wallet_transactions {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  wallet_id      String    @db.Uuid
+  type           String    @db.VarChar
+  amount         Int
+  balance_before Int
+  balance_after  Int
+  reference_id   String?   @db.Uuid
+  metadata       Json?
+  created_at     DateTime? @default(now()) @db.Timestamptz(6)
+  wallets        wallets   @relation(fields: [wallet_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model wallets {
+  id                  String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id             String                @unique @db.Uuid
+  balance             Int                   @default(0)
+  pending_balance     Int                   @default(0)
+  updated_at          DateTime?             @default(now()) @db.Timestamptz(6)
+  wallet_transactions wallet_transactions[]
+  users               users                 @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([user_id], map: "idx_wallets_user")
 }
 
 enum sport_types {
